@@ -1,0 +1,82 @@
+---
+- name: Configure EC2 VMs with Docker, Python, Ansible, and psycopg2
+  hosts: all
+  become: yes
+  gather_facts: yes
+
+  vars:
+    python_packages:
+      - python3
+      - python3-pip
+
+  tasks:
+
+    - name: Display system info
+      debug:
+        msg: |
+          Host: {{ ansible_hostname }}
+          OS: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Memory: {{ ansible_memtotal_mb }} MB
+          CPU: {{ ansible_processor_cores }} cores
+
+    - name: Update packages on Debian-based systems
+      apt:
+        update_cache: yes
+        upgrade: dist
+      when: ansible_os_family == "Debian"
+      tags: update
+
+    - name: Update packages on RedHat-based systems
+      yum:
+        name: '*'
+        state: latest
+      when: ansible_os_family == "RedHat"
+      tags: update
+
+    - name: Check if Docker is already installed
+      command: docker --version
+      register: docker_check
+      ignore_errors: true
+
+    - name: Install Docker if not already present
+      package:
+        name: docker
+        state: present
+      when: docker_check.rc != 0
+
+    - name: Start and enable Docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Install Python packages on Ubuntu
+      apt:
+        name: "{{ python_packages }}"
+        state: present
+      when: ansible_os_family == "Debian"
+
+    - name: Install Python packages on Amazon Linux
+      yum:
+        name: "{{ python_packages }}"
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Check if pip is available
+      command: pip3 --version
+      register: pip_check
+      ignore_errors: true
+
+    - name: Install psycopg2-binary using pip
+      pip:
+        name: psycopg2-binary
+      when: pip_check.rc == 0
+
+    - name: Install Ansible using pip
+      pip:
+        name: ansible
+      when: pip_check.rc == 0
+
+    - name: Final message
+      debug:
+        msg: " {{ inventory_hostname }} setup complete with Docker, Python, psycopg2, and Ansible!"
