@@ -73,10 +73,16 @@
       register: pip_check
       ignore_errors: true
 
-    - name: Install psycopg2-binary using pip
+    - name: Install psycopg2-binary using pip (with system override)
       pip:
         name: psycopg2-binary
-      when: pip_check.rc == 0
+        extra_args: --break-system-packages
+      when: pip_check.rc == 0 and ansible_os_family == "Debian"
+
+    - name: Install psycopg2-binary using pip (Amazon Linux)
+      pip:
+        name: psycopg2-binary
+      when: pip_check.rc == 0 and ansible_os_family == "RedHat"
 
     - name: Install Ansible using pip
       pip:
